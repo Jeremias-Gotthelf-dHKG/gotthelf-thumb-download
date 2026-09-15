@@ -53,6 +53,8 @@ for path in subpaths:
 RETRIES = 0
 MAX_RETRIES = 5
 
+USER_AGENT = "GotthelfThumbnailsBot/1.1 (https://github.com/Jeremias-Gotthelf-dHKG/gotthelf-thumb-download; it-support.dsl@unibe.ch)"
+
 for img in to_download:
     tmp_path = img["path"].parent / (img["path"].name + ".tmp")
     #print(f"Downloading {img['url']}")
@@ -67,7 +69,7 @@ for img in to_download:
                     new_path = "/wikipedia/commons/" + filename_hash[:1] + "/" + filename_hash[:2] + "/" + filename
                     url = url._replace(netloc="upload.wikimedia.org")._replace(path=new_path)._replace(query="")
                     img["url"] = urlunparse(url)
-                with urlopen(Request(img["url"], headers={'User-Agent': 'GotthelfThumbnails/1.0'})) as image_file:
+                with urlopen(Request(img["url"], headers={'User-Agent': USER_AGENT})) as image_file:
                     if url.netloc == "commons.wikimedia.org":
                         with Image(file=image_file) as image:
                             ratio = image.width / 200
@@ -75,6 +77,7 @@ for img in to_download:
                             image.save(file=output_file)
                     else:
                         output_file.write(image_file.read())
+                time.sleep(0.33) # Rate-limit to at most 3 requests per second / 180 requests per minute
 
             tmp_path.replace(img["path"])
             print(f"Downloaded {img['url']} as {img['path']}")
@@ -83,6 +86,9 @@ for img in to_download:
             if e.code == 404:
                 print(f"Image not found (404): {img['url']}")
                 break
+            if e.code == 429:
+                print(f"Rate limit exceeded (429): {img['url']}. Retry-After: {e.headers.get('Retry-After', 'unknown')}")
+                time.sleep(int(e.headers.get('Retry-After', 5)))
             RETRIES += 1
             print(f"Error downloading {img['url']}: {e}. Retry {RETRIES}/{MAX_RETRIES}")
         time.sleep(5 * 2 ** (RETRIES - 1))

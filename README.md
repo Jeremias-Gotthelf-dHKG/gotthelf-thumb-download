@@ -1,0 +1,1 @@
+Thumbnail downloader for Gotthelf digital edition.
